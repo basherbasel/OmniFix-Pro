@@ -7,6 +7,7 @@ import {
   Database, 
   ShieldCheck, 
   AlertTriangle,
+  CheckCircle2,
   RefreshCw,
   Cpu,
   Signal,

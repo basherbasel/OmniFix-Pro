@@ -19,13 +19,26 @@ import {
   ChevronRight,
   Usb,
   Link,
-  Link2Off,
-  CpuChip
+  Link2Off
 } from 'lucide-react';
 import { OmniFixAgent, OmniFixAgentId, HardwareTelemetry } from '../types';
 import { hardwareBridge, RawUsbDevice } from '../lib/hardwareBridge';
 import { useConsent } from '../ConsentContext';
+import { SiliconDieViewer } from './SiliconDieViewer';
 import { BoardViewStudio } from './BoardViewStudio';
+
+// Helper for futuristic charts
+const MiniChart: React.FC<{ data: number[], color: string }> = ({ data, color }) => (
+  <div className="flex items-end gap-0.5 h-6 w-20">
+    {data.map((v, i) => (
+      <div 
+        key={i} 
+        style={{ height: `${v}%` }} 
+        className={`w-full rounded-t-sm ${color} opacity-60`}
+      />
+    ))}
+  </div>
+);
 
 const AGENTS_INITIAL: OmniFixAgent[] = [
   { 
@@ -71,9 +84,24 @@ export const OmniFixCore: React.FC = () => {
     usbStatus: 'disconnected'
   });
   const [logs, setLogs] = useState<{msg: string, type: 'info' | 'warn' | 'success' | 'agent', agent?: string}[]>([]);
+  const [dataStream, setDataStream] = useState<{timestamp: string, baud: string, proto: string, port: string, data: string}[]>([]);
+
+  const [telemetryHistory, setTelemetryHistory] = useState<{cpu: number[], temp: number[]}>(
+    { cpu: [40, 45, 42, 48, 50, 47, 44], temp: [32, 33, 32, 34, 35, 34, 33] }
+  );
 
   const addLog = (msg: string, type: 'info' | 'warn' | 'success' | 'agent' = 'info', agent?: string) => {
     setLogs(prev => [{ msg, type, agent }, ...prev].slice(0, 50));
+  };
+
+  const addStreamData = (baud: string, proto: string, port: string, data: string) => {
+    setDataStream(prev => [{
+      timestamp: new Date().toLocaleTimeString(),
+      baud,
+      proto,
+      port,
+      data
+    }, ...prev].slice(0, 20));
   };
 
   useEffect(() => {
@@ -86,6 +114,27 @@ export const OmniFixCore: React.FC = () => {
       }));
       addLog(`تم اكتشاف جهاز جديد: ${dev.vendorName} ${dev.productName} (${dev.mode})`, 'success');
       
+      // Simulate data stream on connect
+      const streamInterval = setInterval(() => {
+        const protocols = ['ADB', 'Fastboot', 'EDL', 'DFU', 'MTP'];
+        const mockData = [
+          'GET_DESCRIPTOR', 'SET_CONFIGURATION', 'CLAIM_INTERFACE', 
+          'BULK_TRANSFER_OUT', 'BULK_TRANSFER_IN', 'CONTROL_TRANSFER'
+        ];
+        addStreamData(
+          '115200', 
+          protocols[Math.floor(Math.random() * protocols.length)], 
+          `USB_PORT_${Math.floor(Math.random() * 8)}`,
+          mockData[Math.floor(Math.random() * mockData.length)] + ` [${Math.random().toString(16).slice(2, 6).toUpperCase()}]`
+        );
+
+        // Update telemetry history
+        setTelemetryHistory(prev => ({
+          cpu: [...prev.cpu.slice(1), 30 + Math.random() * 40],
+          temp: [...prev.temp.slice(1), 30 + Math.random() * 10]
+        }));
+      }, 1000);
+
       // Trigger Silicon Agent Analysis
       updateAgentStatus('silicon', 'analyzing', 'فحص معمارية المعالج...');
       setTimeout(() => {
@@ -154,7 +203,26 @@ export const OmniFixCore: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="lg:col-span-3 bg-slate-900/50 border border-slate-800 rounded-3xl p-6 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-indigo-600 shadow-[0_0_15px_rgba(79,70,229,0.5)]"></div>
-          <div className="flex items-center justify-between mb-6">
+          
+          {/* Connection Status Light Indicator */}
+          <div className="absolute top-6 left-6 flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full shadow-[0_0_8px] transition-all duration-300 ${
+              telemetry.usbStatus === 'connected' ? 'bg-emerald-500 shadow-emerald-500 animate-pulse' : 
+              telemetry.usbStatus === 'handshaking' ? 'bg-indigo-500 shadow-indigo-500 animate-bounce' : 
+              'bg-slate-700 shadow-transparent'
+            }`} />
+            <span className={`text-[10px] font-black uppercase tracking-tighter ${
+              telemetry.usbStatus === 'connected' ? 'text-emerald-400' : 
+              telemetry.usbStatus === 'handshaking' ? 'text-indigo-400' : 
+              'text-slate-500'
+            }`}>
+              {telemetry.usbStatus === 'connected' ? 'Physical Link: ACTIVE' : 
+               telemetry.usbStatus === 'handshaking' ? 'Physical Link: SYNCING' : 
+               'Physical Link: STANDBY'}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between mb-6 mt-4">
             <div className="flex items-center gap-3">
               <div className={`p-3 rounded-2xl relative ${
                 telemetry.usbStatus === 'connected' ? 'bg-emerald-500/20 text-emerald-400' : 
@@ -232,17 +300,21 @@ export const OmniFixCore: React.FC = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'الجهد (VCC)', value: `${telemetry.voltage}V`, icon: Activity },
-              { label: 'التيار (Amp)', value: `${telemetry.current}A`, icon: Zap },
-              { label: 'الحرارة', value: `${telemetry.temperature}°C`, icon: Thermometer },
-              { label: 'وضع الإقلاع', value: telemetry.bootMode.toUpperCase(), icon: Cpu },
+              { label: 'الجهد (VCC)', value: `${telemetry.voltage}V`, icon: Activity, history: [80, 82, 81, 83, 82, 84, 82], color: 'bg-emerald-500' },
+              { label: 'التيار (Amp)', value: `${telemetry.current}A`, icon: Zap, history: telemetryHistory.cpu, color: 'bg-indigo-500' },
+              { label: 'الحرارة', value: `${telemetry.temperature}°C`, icon: Thermometer, history: telemetryHistory.temp, color: 'bg-amber-500' },
+              { label: 'وضع الإقلاع', value: telemetry.bootMode.toUpperCase(), icon: Cpu, history: [100, 100, 100, 100, 100, 100, 100], color: 'bg-slate-700' },
             ].map((item, i) => (
-              <div key={i} className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800/50 flex flex-col gap-1">
-                <div className="flex items-center gap-2 text-slate-500 mb-1">
-                  <item.icon className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-bold uppercase">{item.label}</span>
+              <div key={i} className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800/50 flex flex-col gap-1 relative overflow-hidden group">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <item.icon className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-bold uppercase">{item.label}</span>
+                  </div>
+                  <MiniChart data={item.history} color={item.color} />
                 </div>
                 <div className="text-lg font-black text-white">{item.value}</div>
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-white/5 rounded-full blur-xl group-hover:bg-white/10 transition-colors" />
               </div>
             ))}
           </div>
@@ -252,7 +324,7 @@ export const OmniFixCore: React.FC = () => {
           <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
             <Terminal className="w-4 h-4" /> سجل العمليات
           </h3>
-          <div className="flex-1 overflow-y-auto max-h-[180px] space-y-2 scrollbar-none font-mono text-[10px]">
+          <div className="flex-1 overflow-y-auto max-h-[120px] space-y-2 scrollbar-none font-mono text-[10px]">
             {logs.length === 0 && <p className="text-slate-700 italic">بانتظار بدء العمليات...</p>}
             {logs.map((log, i) => (
               <div key={i} className={`p-2 rounded-lg border-r-2 ${
@@ -265,6 +337,28 @@ export const OmniFixCore: React.FC = () => {
                 {log.msg}
               </div>
             ))}
+          </div>
+
+          <div className="border-t border-slate-800 pt-4 flex flex-col gap-3">
+            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <Activity className="w-4 h-4 text-indigo-400" /> مراقبة تدفق البيانات
+            </h3>
+            <div className="flex-1 overflow-y-auto max-h-[140px] space-y-1.5 scrollbar-none font-mono text-[9px]">
+              {dataStream.length === 0 && <p className="text-slate-700 italic">لا يوجد تدفق بيانات حالي...</p>}
+              {dataStream.map((stream, i) => (
+                <div key={i} className="flex flex-col gap-1 p-2 rounded-lg bg-slate-900/40 border border-slate-800/50">
+                  <div className="flex items-center justify-between text-[8px] opacity-60">
+                    <span className="text-indigo-300">BAUD: {stream.baud}</span>
+                    <span className="text-emerald-300">PROTO: {stream.proto}</span>
+                    <span className="text-amber-300">PORT: {stream.port}</span>
+                  </div>
+                  <div className="text-slate-400 truncate">
+                    <span className="text-slate-600 mr-1">[{stream.timestamp}]</span>
+                    {stream.data}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -381,6 +475,30 @@ export const OmniFixCore: React.FC = () => {
               {/* Agent Specific Workspace Content */}
               {activeAgentId === 'electronics' ? (
                 <BoardViewStudio />
+              ) : activeAgentId === 'silicon' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <SiliconDieViewer />
+                  </div>
+                  <div className="space-y-6">
+                    <div className="p-6 rounded-3xl bg-slate-900/50 border border-slate-800">
+                      <h5 className="text-[10px] font-black text-indigo-400 uppercase mb-4 tracking-widest">تحليل المعالجة المركزية</h5>
+                      <div className="space-y-4">
+                        {[
+                          { label: 'Instruction Set', value: 'ARMv9-A' },
+                          { label: 'Secure Boot', value: 'Hardware RSA-4096' },
+                          { label: 'Anti-Rollback', value: 'v4 (Active)' },
+                          { label: 'Fusing Status', value: 'Production' }
+                        ].map((stat, i) => (
+                          <div key={i} className="flex justify-between items-center border-b border-slate-800/50 pb-2">
+                            <span className="text-xs text-slate-500">{stat.label}</span>
+                            <span className="text-xs font-bold text-white font-mono">{stat.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="md:col-span-2 space-y-6">
@@ -389,6 +507,43 @@ export const OmniFixCore: React.FC = () => {
                         <Activity className="w-4 h-4 text-emerald-400" /> مصفوفة القدرات التنفيذية
                       </h5>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {activeAgentId === 'security_integrity' && (
+                          <div className="md:col-span-3 p-6 rounded-3xl bg-slate-900 border border-slate-800 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10">
+                              <ShieldAlert className="w-20 h-20" />
+                            </div>
+                            <h5 className="text-sm font-black text-white mb-4 flex items-center gap-2">
+                              <Zap className="w-4 h-4 text-amber-400" /> Neural Exploit Path Analysis
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                              {[
+                                { path: 'Bootrom Overlay', prob: 98.2, status: 'Vulnerable' },
+                                { path: 'TEE TrustZone', prob: 12.4, status: 'Patched' },
+                                { path: 'RPMB Replay', prob: 64.1, status: 'Exploitable' },
+                                { path: 'Fuse Bypass', prob: 89.9, status: 'Vulnerable' }
+                              ].map((p, i) => (
+                                <div key={i} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-2">
+                                  <span className="text-[10px] text-slate-500 font-bold uppercase">{p.path}</span>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-lg font-black text-white">{p.prob}%</span>
+                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase ${
+                                      p.status === 'Vulnerable' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                      p.status === 'Patched' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                                      'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                    }`}>{p.status}</span>
+                                  </div>
+                                  <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                                    <motion.div 
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${p.prob}%` }}
+                                      className={`h-full ${p.status === 'Vulnerable' ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {activeAgentId === 'silicon' && [
                           'فك تشفير Bootrom', 'توليد Firehose Loader', 'تحليل Anti-Rollback', 'قراءة سجلات CPU'
                         ].map(t => (

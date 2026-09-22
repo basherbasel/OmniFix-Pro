@@ -19,10 +19,6 @@ export const aiGenerationLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'AI generation limit reached for this hour.' },
-  keyGenerator: (req) => {
-    // If authenticated, limit by user ID, otherwise by IP
-    return (req as any).user?.uid || req.ip;
-  },
 });
 
 // 2. Hardened Security Headers

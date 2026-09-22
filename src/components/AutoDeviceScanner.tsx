@@ -94,15 +94,18 @@ export const AutoDeviceScanner: React.FC<AutoDeviceScannerProps> = ({
         setCurrentScanningMetric(scanningPhases[currentPhase]);
       } else {
         clearInterval(interval);
-        const result = hardwareBridge.diagnoseDeviceFaults(device);
-        setDiagnosticResult(result);
-        setIsScanning(false);
-        if (!silent) {
-          onSendTerminalLog(
-            `[Auto-Diagnostic Complete] اكتمل الفحص: مؤشر السلامة ${result.overallHealthScore}% | تم رصد ${result.faults.length} ملاحظة/عطل.`,
-            result.status === 'healthy' ? 'success' : result.status === 'warning' ? 'info' : 'error'
-          );
-        }
+        // Execute async diagnostic
+        (async () => {
+          const result = await hardwareBridge.diagnoseDeviceFaults(device);
+          setDiagnosticResult(result);
+          setIsScanning(false);
+          if (!silent) {
+            onSendTerminalLog(
+              `[Auto-Diagnostic Complete] اكتمل الفحص: مؤشر السلامة ${result.overallHealthScore}% | تم رصد ${result.faults.length} ملاحظة/عطل.`,
+              result.status === 'healthy' ? 'success' : result.status === 'warning' ? 'info' : 'error'
+            );
+          }
+        })();
       }
     }, 120);
   };

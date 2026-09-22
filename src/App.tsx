@@ -13,6 +13,7 @@ import { ConsentGateway } from './components/ConsentGateway';
 import { AutomationEngine } from './components/AutomationEngine';
 import { RFNetworkStudio } from './components/RFNetworkStudio';
 import { FirmwareIntegrityAnalyzer } from './components/FirmwareIntegrityAnalyzer';
+import { SecurityCenter } from './components/SecurityCenter';
 import { ConsentProvider, useConsent } from './ConsentContext';
 import { POPULAR_DEVICES } from './data/devicePresets';
 import { DeviceInfo } from './types';
@@ -117,6 +118,14 @@ export function AppContent() {
 
                 {currentTab === 'firmware-analyzer' && (
                   <FirmwareIntegrityAnalyzer />
+                )}
+
+                {currentTab === 'security' && (
+                  <SecurityCenter 
+                    device={activeDevice} 
+                    onSendTerminalLog={(text, type) => console.log(text, type)} 
+                    onUpdateDevice={() => {}} 
+                  />
                 )}
 
                 {/* Legacy / Shared Hubs */}

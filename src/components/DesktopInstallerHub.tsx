@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { DeviceInfo } from '../types';
-import { hardwareBridge, OFFICIAL_DRIVERS_LIST, KNOWN_USB_VENDORS, RealUsbDevice } from '../lib/hardwareBridge';
+import { hardwareBridge, OFFICIAL_DRIVERS_LIST, KNOWN_USB_VENDORS, RawUsbDevice } from '../lib/hardwareBridge';
 
 interface DesktopInstallerHubProps {
   device: DeviceInfo;
@@ -47,7 +47,7 @@ export const DesktopInstallerHub: React.FC<DesktopInstallerHubProps> = ({
 
   // Real Hardware State
   const [isScanningUsb, setIsScanningUsb] = useState<boolean>(false);
-  const [connectedRealDevice, setConnectedRealDevice] = useState<RealUsbDevice | null>(hardwareBridge.getActiveDevice());
+  const [connectedRealDevice, setConnectedRealDevice] = useState<RawUsbDevice | null>(hardwareBridge.getActiveDevice() as any);
   const [hardwareLog, setHardwareLog] = useState<string[]>([]);
 
   useEffect(() => {

@@ -72,6 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'automation-engine', label: 'محرك الأتمتة (Auto-Fix)', icon: Zap },
         { id: 'rf-studio', label: 'مختبر الشبكات (RF Studio)', icon: Radio },
         { id: 'firmware-analyzer', label: 'محلل الحماية (Firmware)', icon: ShieldAlert },
+        { id: 'security', label: 'مركز الحماية وتخطي الأقفال', icon: Fingerprint },
         { id: 'hardware-telemetry', label: 'تيليمتري الهاردوير', icon: Activity },
       ]
     },
