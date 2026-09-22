@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Reusable Primitives
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 3. Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'username', 'role', 'email', 'isActive', 'subscriptionTier', 'createdAt', 'updatedAt'])
+        && data.keys().size() == 8
+        && data.id == request.auth.uid
+        && data.username is string && data.username.size() >= 3 && data.username.size() <= 100
+        && data.role in ['creator', 'marketer', 'admin']
+        && data.email is string && data.email.size() <= 100
+        && data.isActive is bool
+        && data.subscriptionTier in ['free', 'pro', 'enterprise']
+        && data.createdAt == request.time || data.createdAt is string // Handling creation vs update logic
+        && data.updatedAt == request.time;
+    }
+
+    function isValidCampaign(data) {
+      return data.keys().hasAll(['title', 'objective', 'status', 'ownerId', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() <= 200
+        && data.objective in ['awareness', 'conversion', 'engagement']
+        && data.status in ['draft', 'active', 'completed', 'paused']
+        && data.ownerId == request.auth.uid
+        && data.updatedAt == request.time;
+    }
+
+    function isValidContentPost(data) {
+      return data.keys().hasAll(['campaignId', 'platform', 'content', 'status', 'creatorId', 'createdAt'])
+        && data.platform in ['youtube', 'tiktok', 'meta', 'twitter']
+        && data.content is string && data.content.size() <= 5000
+        && data.status in ['pending', 'rendering', 'ready', 'published']
+        && data.creatorId == request.auth.uid
+        && exists(/databases/$(database)/documents/campaigns/$(data.campaignId));
+    }
+
+    // 4. Collection Rules
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      
+      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming()) 
+                    && incoming().role != 'admin'; // Prevent self-elevation to admin
+      
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          isOwner(userId) && isValidUser(incoming())
+          && incoming().role == existing().role // Role is immutable for user
+          && incoming().subscriptionTier == existing().subscriptionTier // Tier managed by admin/system
+          && incoming().diff(existing()).affectedKeys().hasOnly(['username', 'updatedAt'])
+        )
+      );
+    }
+
+    match /campaigns/{campaignId} {
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() && isValidId(campaignId) && isValidCampaign(incoming())
+                    && incoming().createdAt == request.time;
+
+      allow update: if isSignedIn() && isValidId(campaignId) && (
+        isAdmin() || (
+          existing().ownerId == request.auth.uid 
+          && isValidCampaign(incoming())
+          && incoming().ownerId == existing().ownerId // Owner is immutable
+          && incoming().createdAt == existing().createdAt // CreatedAt is immutable
+          && (
+            // Action: Edit Metadata
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'objective', 'updatedAt', 'aiStrategy', 'budget']) ||
+            // Action: Change Status
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        )
+      );
+
+      allow delete: if isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin());
+
+      // Nested Posts
+      match /posts/{postId} {
+        allow list: if isSignedIn() && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId == request.auth.uid;
+        allow get: if isSignedIn() && (get(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId == request.auth.uid || isAdmin());
+
+        allow create: if isSignedIn() && isValidId(postId) && isValidContentPost(incoming())
+                      && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId == request.auth.uid;
+
+        allow update: if isSignedIn() && isValidId(postId) && (
+          isAdmin() || (
+            existing().creatorId == request.auth.uid 
+            && isValidContentPost(incoming())
+            && existing().status != 'published' // Terminal state locking
+            && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'status', 'scheduledAt'])
+          )
+        );
+
+        allow delete: if isSignedIn() && (existing().creatorId == request.auth.uid || isAdmin());
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Secure user profile for AI Studio platform",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Firebase UID" },
+        "username": { "type": "string", "minLength": 3, "maxLength": 100 },
+        "role": { "type": "string", "enum": ["admin", "creator", "marketer"] },
+        "email": { "type": "string", "format": "email" },
+        "isActive": { "type": "boolean" },
+        "subscriptionTier": { "type": "string", "enum": ["free", "pro", "enterprise"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "username", "role", "email", "isActive"]
+    },
+    "Campaign": {
+      "title": "Marketing Campaign",
+      "description": "Autonomous AI marketing campaign",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "objective": { "type": "string", "enum": ["awareness", "conversion", "engagement"] },
+        "status": { "type": "string", "enum": ["draft", "active", "completed", "paused"] },
+        "ownerId": { "type": "string" },
+        "aiStrategy": { "type": "string" },
+        "budget": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "objective", "status", "ownerId"]
+    },
+    "ContentPost": {
+      "title": "AI Content Post",
+      "description": "AI-generated social media post",
+      "type": "object",
+      "properties": {
+        "campaignId": { "type": "string" },
+        "platform": { "type": "string", "enum": ["youtube", "tiktok", "meta", "twitter"] },
+        "content": { "type": "string", "maxLength": 5000 },
+        "mediaUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "rendering", "ready", "published"] },
+        "creatorId": { "type": "string" },
+        "scheduledAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["campaignId", "platform", "content", "status", "creatorId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Secure user registry"
+    },
+    "/campaigns/{campaignId}": {
+      "schema": "Campaign",
+      "description": "Marketing campaign management"
+    },
+    "/campaigns/{campaignId}/posts/{postId}": {
+      "schema": "ContentPost",
+      "description": "AI-generated posts within campaigns"
+    }
+  }
+}

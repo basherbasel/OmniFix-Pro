@@ -1,0 +1,6 @@
+{
+  "name": "OmniFix Pro | FixAI Suite",
+  "description": "The Autonomous Hive-Mind Architecture for mobile engineering, hardware diagnostics, and firmware integrity. Powered by hyper-specialized AI agents for SoC, RF, Micro-electronics, and Security.",
+  "requestFramePermissions": ["usb", "serial", "bluetooth"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
