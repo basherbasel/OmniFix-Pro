@@ -70,6 +70,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'dashboard', label: 'لوحة التحكم السيادية', icon: Home },
         { id: 'omnifix-core', label: 'مركز التحكم بالوكلاء', icon: Cpu },
         { id: 'automation-engine', label: 'محرك الأتمتة (Auto-Fix)', icon: Zap },
+        { id: 'rf-studio', label: 'مختبر الشبكات (RF Studio)', icon: Radio },
+        { id: 'firmware-analyzer', label: 'محلل الحماية (Firmware)', icon: ShieldAlert },
         { id: 'hardware-telemetry', label: 'تيليمتري الهاردوير', icon: Activity },
       ]
     },

@@ -11,6 +11,8 @@ import { ContentCalendar } from './components/ContentCalendar';
 import { OmniFixCore } from './components/OmniFixCore';
 import { ConsentGateway } from './components/ConsentGateway';
 import { AutomationEngine } from './components/AutomationEngine';
+import { RFNetworkStudio } from './components/RFNetworkStudio';
+import { FirmwareIntegrityAnalyzer } from './components/FirmwareIntegrityAnalyzer';
 import { ConsentProvider, useConsent } from './ConsentContext';
 import { POPULAR_DEVICES } from './data/devicePresets';
 import { DeviceInfo } from './types';
@@ -107,6 +109,14 @@ export function AppContent() {
 
                 {currentTab === 'automation-engine' && (
                   <AutomationEngine />
+                )}
+
+                {currentTab === 'rf-studio' && (
+                  <RFNetworkStudio />
+                )}
+
+                {currentTab === 'firmware-analyzer' && (
+                  <FirmwareIntegrityAnalyzer />
                 )}
 
                 {/* Legacy / Shared Hubs */}
