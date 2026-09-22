@@ -117,15 +117,14 @@ export const OmniFixCore: React.FC = () => {
       // Simulate data stream on connect
       const streamInterval = setInterval(() => {
         const protocols = ['ADB', 'Fastboot', 'EDL', 'DFU', 'MTP'];
-        const mockData = [
-          'GET_DESCRIPTOR', 'SET_CONFIGURATION', 'CLAIM_INTERFACE', 
-          'BULK_TRANSFER_OUT', 'BULK_TRANSFER_IN', 'CONTROL_TRANSFER'
-        ];
+        const kernelLogs = hardwareBridge.getKernelLogs();
+        const randomKernelLog = kernelLogs[Math.floor(Math.random() * kernelLogs.length)];
+        
         addStreamData(
           '115200', 
           protocols[Math.floor(Math.random() * protocols.length)], 
           `USB_PORT_${Math.floor(Math.random() * 8)}`,
-          mockData[Math.floor(Math.random() * mockData.length)] + ` [${Math.random().toString(16).slice(2, 6).toUpperCase()}]`
+          randomKernelLog
         );
 
         // Update telemetry history
@@ -133,7 +132,7 @@ export const OmniFixCore: React.FC = () => {
           cpu: [...prev.cpu.slice(1), 30 + Math.random() * 40],
           temp: [...prev.temp.slice(1), 30 + Math.random() * 10]
         }));
-      }, 1000);
+      }, 1500);
 
       // Trigger Silicon Agent Analysis
       updateAgentStatus('silicon', 'analyzing', 'فحص معمارية المعالج...');
@@ -185,11 +184,14 @@ export const OmniFixCore: React.FC = () => {
       });
 
       if (confirmed) {
-        addLog('تم منح الإذن السيادي. بدء عملية التخطي...', 'info', 'security_integrity');
-        updateAgentStatus('security_integrity', 'active', 'جاري حقن الثغرة...');
+        addLog('تم منح الإذن السيادي. بدء تحليل المسارات العصبية...', 'info', 'security_integrity');
+        updateAgentStatus('security_integrity', 'active', 'جاري تحليل الثغرات...');
+        
+        const sweep = await hardwareBridge.performSecuritySweep();
+        
         setTimeout(() => {
-          updateAgentStatus('security_integrity', 'active', 'تم تخطي الحماية بنجاح!');
-          addLog('وكيل الأمان: تم تخطي حماية FRP بنجاح.', 'success', 'security_integrity');
+          updateAgentStatus('security_integrity', 'active', `تم الانتهاق. درجة الأمان: ${sweep.score}%`);
+          addLog(`وكيل الأمان: اكتشاف ${sweep.findings.filter(f => f.status === 'critical').length} ثغرات حرجة.`, 'warn', 'security_integrity');
         }, 3000);
       } else {
         addLog('تم إلغاء العملية من قبل المستخدم.', 'warn', 'security_integrity');

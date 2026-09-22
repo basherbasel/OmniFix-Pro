@@ -7,16 +7,17 @@ import { z } from 'zod';
 // 1. Advanced Multi-tier Rate Limiting
 export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  standardHeaders: true,
+  max: 1000, // Increased for stability during development
+  standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
+  skip: (req) => process.env.NODE_ENV !== 'production' && req.ip === '127.0.0.1',
 });
 
 export const aiGenerationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // limit each IP to 20 AI generations per hour
-  standardHeaders: true,
+  max: 50, // limit each IP to 50 AI generations per hour
+  standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'AI generation limit reached for this hour.' },
 });

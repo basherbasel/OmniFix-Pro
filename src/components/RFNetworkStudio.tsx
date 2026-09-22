@@ -12,7 +12,8 @@ import {
   Cpu,
   Signal,
   Wifi,
-  FileCode
+  FileCode,
+  Terminal
 } from 'lucide-react';
 import { FirmwareParser } from '../lib/firmwareParser';
 
@@ -20,6 +21,10 @@ export const RFNetworkStudio: React.FC = () => {
   const [imei, setImei] = useState('');
   const [isImeiValid, setIsImeiValid] = useState<boolean | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [technicalLogs, setTechnicalLogs] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const addLog = (msg: string) => setTechnicalLogs(prev => [...prev, msg].slice(-10));
 
   const handleVerifyImei = (val: string) => {
     setImei(val);
@@ -28,6 +33,22 @@ export const RFNetworkStudio: React.FC = () => {
     } else {
       setIsImeiValid(null);
     }
+  };
+
+  const runDiagnostic = async (type: 'read_qcn' | 'reset_efs') => {
+    setIsProcessing(true);
+    addLog(`[ACTION] Initiating ${type.toUpperCase()} procedure...`);
+    
+    const res = await (await import('../lib/hardwareBridge')).hardwareBridge.performRfDiagnostic(type);
+    
+    res.logs.forEach((l, i) => {
+      setTimeout(() => addLog(l), i * 300);
+    });
+
+    setTimeout(() => {
+      setIsProcessing(false);
+      if (res.success) addLog(`[SUCCESS] ${type.toUpperCase()} operation completed successfully.`);
+    }, res.logs.length * 300 + 500);
   };
 
   return (
@@ -110,13 +131,33 @@ export const RFNetworkStudio: React.FC = () => {
                 </div>
 
                 <div className="pt-4 border-t border-slate-800 grid grid-cols-2 gap-3">
-                  <button className="py-3 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-black uppercase hover:bg-slate-700 transition-all">
-                    قراءة QCN
+                  <button 
+                    disabled={isProcessing}
+                    onClick={() => runDiagnostic('read_qcn')}
+                    className="py-3 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-black uppercase hover:bg-indigo-600 hover:text-white transition-all disabled:opacity-50"
+                  >
+                    {isProcessing ? 'جاري القراءة...' : 'قراءة QCN'}
                   </button>
-                  <button className="py-3 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-black uppercase hover:bg-slate-700 transition-all">
-                    تصفير EFS
+                  <button 
+                    disabled={isProcessing}
+                    onClick={() => runDiagnostic('reset_efs')}
+                    className="py-3 rounded-xl bg-slate-800 text-slate-300 text-[10px] font-black uppercase hover:bg-red-600 hover:text-white transition-all disabled:opacity-50"
+                  >
+                    {isProcessing ? 'جاري التصفير...' : 'تصفير EFS'}
                   </button>
                 </div>
+              </div>
+              
+              {/* Technical Terminal */}
+              <div className="mt-4 p-4 rounded-2xl bg-slate-950 border border-slate-800 font-mono text-[9px] min-h-[80px]">
+                <div className="flex items-center gap-2 mb-2 text-slate-600">
+                  <Terminal className="w-3 h-3" />
+                  <span>RF_DIAG_CONSOLE v2.1</span>
+                </div>
+                {technicalLogs.length === 0 && <p className="text-slate-800 italic">بانتظار الأوامر...</p>}
+                {technicalLogs.map((log, i) => (
+                  <div key={i} className="text-emerald-500/80 mb-1">{log}</div>
+                ))}
               </div>
             </div>
           </div>

@@ -21,6 +21,9 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Tell Express to trust the proxy (Nginx) for correct IP and protocol detection
+app.set('trust proxy', 1);
+
 // Apply Global Security Middlewares
 app.use(securityHeaders);
 app.use(corsOptions);
